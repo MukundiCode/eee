@@ -14,7 +14,8 @@ btn_submit = 16
 btn_increase = 18
 buzzer = None
 eeprom = ES2EEPROMUtils.ES2EEPROM()
-
+current_guess = 0
+value = 0
 
 # Print the game banner
 def welcome():
@@ -31,7 +32,7 @@ def welcome():
 
 # Print the game menu
 def menu():
-    global end_of_game
+    global end_of_game, value
     option = input("Select an option:   H - View High Scores     P - Play Game       Q - Quit\n")
     option = option.upper()
     if option == "H":
@@ -45,6 +46,7 @@ def menu():
         print("Use the buttons on the Pi to make and submit your guess!")
         print("Press and hold the guess button to cancel your game")
         value = generate_number()
+        print(value)
         while not end_of_game:
             pass
     elif option == "Q":
@@ -66,12 +68,18 @@ def setup():
     GPIO.setmode(GPIO.BOARD) # Setup board mode
     # Setup regular GPIO
     GPIO.setup(LED_value[0],GPIO.OUT)
+    GPIO.output(LED_value[0],0)
     GPIO.setup(LED_value[1], GPIO.OUT)
+    GPIO.output(LED_value[1],0)
     GPIO.setup(LED_value[2], GPIO.OUT)
-    GPIO.setup(btn_increase,GPIO.IN)
-    GPIO.setup(btn_submit,GPIO.IN)
+    GPIO.output(LED_value[2],0)
+    GPIO.setup(btn_increase,GPIO.IN,pull_up_down = GPIO.PUD_UP)
+    GPIO.setup(btn_submit,GPIO.IN,pull_up_down = GPIO.PUD_UP)
     # Setup PWM channels
+    
     # Setup debouncing and callbacks
+    GPIO.add_event_detect(btn_increase, GPIO.RISING,callback=btn_increase_pressed,bouncetime=300)
+    GPIO.add_event_detect(btn_submit, GPIO.RISING,callback=btn_guess_pressed,bouncetime=300)
     pass
 
 
@@ -104,16 +112,57 @@ def generate_number():
 
 # Increase button pressed
 def btn_increase_pressed(channel):
+    global current_guess
     # Increase the value shown on the LEDs
     # You can choose to have a global variable store the user's current guess, 
     # or just pull the value off the LEDs when a user makes a guess
+    current_guess = current_guess+1
+    update_leds()
     pass
 
+def update_leds():
+    global current_guess
+    led_out = [0,0,0]
+    print(current_guess)
+    if current_guess == 1:
+        led_out[0] = 1
+    elif current_guess == 2:
+        led_out[1] = 1
+    elif current_guess == 3:
+        led_out[0] = 1
+        led_out[1] = 1
+    elif current_guess == 4:
+        led_out[2] = 1
+    elif current_guess == 5:
+        led_out[0] = 1
+        led_out[2] = 1
+    elif current_guess == 6:
+        led_out[2] = 1
+        led_out[1] = 1
+    elif current_guess == 7:
+        led_out[0] = 1
+        led_out[1] = 1
+        led_out[2] = 1
+    else:
+        current_guess = 0
+	        
+    
+    GPIO.output(LED_value[0],led_out[0])
+    GPIO.output(LED_value[1],led_out[1])
+    GPIO.output(LED_value[2],led_out[2])
 
 # Guess button
 def btn_guess_pressed(channel):
+    global current_guess, value
     # If they've pressed and held the button, clear up the GPIO and take them back to the menu screen
+   # GPIO.cleanup()
     # Compare the actual value with the user value displayed on the LEDs
+    print("pressed")
+    if current_guess == value:
+        print("Guess corrent nigga")
+        menu()
+    else:
+        print("wrong, try again")
     # Change the PWM LED
     # if it's close enough, adjust the buzzer
     # if it's an exact guess:
